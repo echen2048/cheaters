@@ -13,6 +13,13 @@ void norm(string &str);
 void buildHashTable(ifstream &myFile, unordered_map<unsigned long,string> &comp, int chunkSize, string fname);
 int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp, int chunkSize, string fname);
 
+struct data_out{
+    int collisionCount;
+    string file1;
+    //string file2;
+};
+
+void printOutput(vector<data_out> &data, const int len);
 
 
 int getdir (string dir, vector<string> &files){
@@ -44,9 +51,9 @@ int main(int argc, char *argv[]) {
 
 
     getdir(dir, files);
-    for(unsigned int i = 0; i < files.size(); i ++){
+    /*for(unsigned int i = 0; i < files.size(); i ++){
         cout << i << files[i] << endl;
-    }
+    }*/
     cout << endl;
     vector<string>::iterator it;
     it = files.begin();
@@ -61,7 +68,8 @@ int main(int argc, char *argv[]) {
     string compName;
     ifstream myFile;
     ifstream compFile;
-
+    vector<data_out> output =  vector<data_out>();
+    int compCount = 0;
     unordered_map<unsigned long,string> master;
     int collisions = 0;
 
@@ -69,6 +77,7 @@ int main(int argc, char *argv[]) {
         cout <<"not enough files!";
         return 0;
     }
+    data_out temp;
 
     for(it = files.begin(); it!= files.end()-1; it++){
         fname = dir + "/" + *it;
@@ -80,7 +89,11 @@ int main(int argc, char *argv[]) {
             compFile.open(compName.c_str());
             collisions = countCollisions(compFile,master,chunkSize,compName);
             if(collisions >= threshold) {
-                cout << *it << " " << *itComp << " " << collisions << endl;
+                //cout << *it << " " << *itComp << " " << collisions << endl;
+                temp.collisionCount = collisions;
+                temp.file1 = *it + " " + *itComp;
+                output.push_back(temp);
+                compCount++;
             }
             compFile.close();
         }
@@ -88,21 +101,8 @@ int main(int argc, char *argv[]) {
         master.clear();
     }
 
-
-/*
-    myFile.open(fname.c_str());
-    compFile.open(compName.c_str());
-
-    unordered_map<unsigned long,string> comp;
-
-    buildHashTable(myFile, master, chunkSize, fname);
-    int coll = countCollisions(compFile, master, chunkSize, compName);
-    cout << coll << "\n";
-    unordered_map<unsigned long,string>::iterator iter;
-
-    myFile.close();
-    compFile.close(); */
-
+    cout << "SHOWING FILES WITH >" << threshold << " COLLISIONS OF SIZE " << chunkSize << " CHUNKS" << endl;
+    printOutput(output, compCount);
     return 0;
 }
 
@@ -203,4 +203,34 @@ int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp,
     return collisionCount;
 
 }
+
+void printOutput(vector<data_out> &data, const int len){
+    data_out temp;
+    int maxIndex;
+
+    for(int i = 0; i < len-1; i ++){
+        maxIndex = i;
+        for(int j = i+1; j < len; j++){
+            if(data[j].collisionCount > data[maxIndex].collisionCount){
+                maxIndex = j; //find index of max collision count
+            }
+        }
+        //swap maxIndex and i
+        if(maxIndex != i){
+            temp.collisionCount = data[i].collisionCount;
+            temp.file1 = data[i].file1;
+
+            data[i].collisionCount = data[maxIndex].collisionCount;
+            data[i].file1 = data[maxIndex].file1;
+
+            data[maxIndex].collisionCount = temp.collisionCount;
+            data[maxIndex].file1 = temp.file1;
+        }
+    }
+
+    for(int i = 0; i < len; i ++){
+        cout << data[i].collisionCount << " : " << data[i].file1 << " " << endl;
+    }
+}
+
 
