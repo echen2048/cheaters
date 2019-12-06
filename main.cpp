@@ -1,3 +1,4 @@
+//ERIC CHEN AND CHRISTIAN BOSWELL
 #include <iostream>
 #include <cstdlib>
 #include <vector>
@@ -5,15 +6,17 @@
 #include<sys/types.h>
 #include<dirent.h>
 #include<cerrno>
-#include<unordered_map>
 #include<functional>
 using namespace std;
 
-void norm(string &hstr);
-void buildHashTable(ifstream &myFile, unordered_map<unsigned long,string> &comp, int chunkSize, string fname, vector<string> &hashTable);
-int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp, int chunkSize, string fname, vector<string> &hashTable);
+void norm(string &str);
+void buildHashTable(ifstream &myFile, int chunkSize, string fname, vector<string> &hashTable);
+int countCollisions(ifstream &myFile, int chunkSize, string fname, vector<string> &hashTable);
 bool findInTable(unsigned long hashVal, vector<string> &hashTable);
 long hashFcn(string);
+
+const int TABLE_SIZE = 900019; //hash constant
+
 struct data_out{
     int collisionCount;
     string file1;
@@ -39,24 +42,27 @@ int getdir (string dir, vector<string> &files){
 }
 
 int main(int argc, char *argv[]) {
-    /*if(argc != 4){
+    if(argc != 4){
         cout << "incorrect parameters!" << endl;
         return -1;
-    }*/
-    string dir = "testdir"; //argv[1];
-    int chunkSize = 6; //atoi(argv[2]);
-    int threshold = 200; //atoi(argv[3]);
-    const int TABLE_SIZE = 900019;
+    }
+    string dir = argv[1];
+    int chunkSize = atoi(argv[2]);
+    int threshold = atoi(argv[3]);
 
     vector<string> files = vector<string>();
     vector<string> hashTable = vector<string>();
     hashTable.reserve(TABLE_SIZE);
+    for(int i = 0; i < TABLE_SIZE; i++){
+        hashTable.push_back("");
+    }
 
     getdir(dir, files);
     /*for(unsigned int i = 0; i < files.size(); i ++){
         cout << i << files[i] << endl;
     }*/
-    cout << endl;
+	
+    //delete . and ..
     vector<string>::iterator it;
     it = files.begin();
     files.erase(it);
@@ -65,33 +71,31 @@ int main(int argc, char *argv[]) {
 
     vector<string>::iterator itComp;
 
-
     string fname;
     string compName;
     ifstream myFile;
     ifstream compFile;
+	data_out temp;
     vector<data_out> output =  vector<data_out>();
     int compCount = 0;
-    unordered_map<unsigned long,string> master;
     int collisions = 0;
 
     if(files.size() < 2){
-        cout <<"not enough files!";
-        return 0;
+        cout <<"not enough files!" <<endl;
+        return -1;
     }
-    data_out temp;
 
-    for(it = files.begin(); it!= files.end()-1; it++){
+    for(it = files.begin(); it!= files.end()-1; it++){ //iterate through file list
         fname = dir + "/" + *it;
         myFile.open(fname.c_str());
-        buildHashTable(myFile, master, chunkSize, fname, hashTable);
+        buildHashTable(myFile, chunkSize, fname, hashTable);
         //cout << "\n\nCOMP TABLE\n\n";
-        for(itComp = it + 1; itComp != files.end(); itComp++){
+        for(itComp = it + 1; itComp != files.end(); itComp++){ //get each file to compare to
             compName = dir + "/" + *itComp;
             compFile.open(compName.c_str());
-            collisions = countCollisions(compFile,master,chunkSize,compName, hashTable);
+            collisions = countCollisions(compFile,chunkSize,compName, hashTable);
             if(collisions >= threshold) {
-                cout << *it << " " << *itComp << " " << collisions << endl;
+                //cout << *it << " " << *itComp << " " << collisions << endl;
                 temp.collisionCount = collisions;
                 temp.file1 = *it + " " + *itComp;
                 output.push_back(temp);
@@ -100,13 +104,14 @@ int main(int argc, char *argv[]) {
             compFile.close();
         }
         myFile.close();
-        master.clear();
         hashTable.clear();
-        hashTable.reserve(TABLE_SIZE);
+        for(int i = 0; i < TABLE_SIZE; i++){
+            hashTable.push_back("");
+        }
     }
 
     cout << "SHOWING FILES WITH >" << threshold << " COLLISIONS OF SIZE " << chunkSize << " CHUNKS" << endl;
-    //printOutput(output, compCount);
+    printOutput(output, compCount);
     return 0;
 }
 
@@ -123,7 +128,7 @@ void norm(string &str){
     }
 }
 
-void buildHashTable(ifstream &myFile, unordered_map<unsigned long,string> &comp, const int chunkSize, string fname, vector<string> &hashTable){
+void buildHashTable(ifstream &myFile, const int chunkSize, string fname, vector<string> &hashTable){
     unsigned long hashVal;
     vector<string> chunkQ;
     vector<string>::iterator it;
@@ -154,11 +159,9 @@ void buildHashTable(ifstream &myFile, unordered_map<unsigned long,string> &comp,
                 chunkQ.push_back(inWord);
             }
 
-            //hashVal = hash<std::string>{}(chunkStr) % 900019;
             hashVal = hashFcn(chunkStr);
             //cout << hashVal << " " << chunkStr << "\n";
-            comp.insert(make_pair(hashVal,chunkStr));
-            //hashTable[hashVal] = chunkStr;
+            hashTable[hashVal] = chunkStr;
             chunkStr = "";
         }
 
@@ -166,7 +169,7 @@ void buildHashTable(ifstream &myFile, unordered_map<unsigned long,string> &comp,
 
 }
 
-int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp, const int chunkSize, string fname, vector<string> &hashTable) {
+int countCollisions(ifstream &myFile, const int chunkSize, string fname, vector<string> &hashTable) {
     unsigned long hashVal;
     vector<string> chunkQ;
     vector<string>::iterator it;
@@ -198,15 +201,12 @@ int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp,
                 chunkQ.push_back(inWord);
             }
 
-            //hashVal = hash<std::string>{}(chunkStr) % 900019;
             hashVal = hashFcn(chunkStr);
             //cout << hashVal << " " << chunkStr << "\n";
-            if(comp.find(hashVal) != comp.end()){
+
+            if(findInTable(hashVal, hashTable)) {
                 collisionCount++;
             }
-            /*if(findInTable(hashVal, hashTable)) {
-                collisionCount++;
-            }*/
             chunkStr = "";
         }
     }
@@ -217,7 +217,8 @@ int countCollisions(ifstream &myFile, unordered_map<unsigned long,string> &comp,
 void printOutput(vector<data_out> &data, const int len){
     data_out temp;
     int maxIndex;
-
+	
+	//sort descending
     for(int i = 0; i < len-1; i ++){
         maxIndex = i;
         for(int j = i+1; j < len; j++){
@@ -248,7 +249,6 @@ bool findInTable(unsigned long hashVal, vector<string> &hashTable){
 }
 
 long hashFcn(string s){
-    const int TABLE_SIZE = 900019;
     long hash = 0;
     int base = 37;
     int exp = 1;
