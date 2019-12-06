@@ -4,7 +4,7 @@ run:
 	make plagiarismCatcher
 
 To execute:
-	./plagiarismCatcher filefir x y
+	./plagiarismCatcher filedir x y
 
 WHERE filedir is the path to directory containing list of files
 x is the word chunk size
